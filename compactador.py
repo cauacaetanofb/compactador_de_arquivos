@@ -71,18 +71,71 @@ def quebrar_linhas(label, largura=480):
     label.bind("<Configure>", lambda e: label.configure(wraplength=max(1, e.width - 2)))
 
 
+class PaginaRolavel(tk.Frame):
+    """Mantém os painéis acessíveis quando a janela é menor que seu conteúdo."""
+
+    def __init__(self, janela):
+        super().__init__(janela, bg=FUNDO)
+        self.columnconfigure(0, weight=1)
+        self.rowconfigure(0, weight=1)
+        self.tela = tk.Canvas(self, bg=FUNDO, highlightthickness=0, takefocus=False,
+                              width=min(798, janela.winfo_screenwidth() - 42), height=320)
+        self.tela.grid(row=0, column=0, sticky="nsew")
+        self.barra = ttk.Scrollbar(self, orient="vertical", command=self.tela.yview)
+        self.barra.grid(row=0, column=1, sticky="ns")
+        self.tela.configure(yscrollcommand=self.barra.set)
+        self.conteudo = tk.Frame(self.tela, bg=FUNDO)
+        self.conteudo.columnconfigure(0, weight=1)
+        self.item = self.tela.create_window(0, 0, window=self.conteudo, anchor="nw")
+        self.pagina = tk.Frame(self.conteudo, bg=FUNDO, padx=24, pady=20)
+        self.pagina.grid(row=0, column=0, sticky="nsew")
+        self.tela.bind("<Configure>", self.redimensionar)
+        self.conteudo.bind("<Configure>", self.atualizar)
+        janela.bind("<MouseWheel>", self.rolar, add="+")
+        janela.bind("<FocusIn>", self.expor_foco, add="+")
+
+    def redimensionar(self, evento):
+        self.tela.itemconfigure(self.item, width=evento.width)
+        self.conteudo.rowconfigure(0, minsize=evento.height)
+        self.atualizar()
+
+    def atualizar(self, evento=None):
+        altura = self.pagina.winfo_reqheight()
+        self.tela.configure(height=min(altura, self.winfo_screenheight() - 80),
+                            scrollregion=self.tela.bbox(self.item))
+        if altura > self.tela.winfo_height():
+            self.barra.grid()
+        else:
+            self.barra.grid_remove()
+
+    def rolar(self, evento):
+        if self.barra.winfo_ismapped() and evento.delta:
+            self.tela.yview_scroll(-3 if evento.delta > 0 else 3, "units")
+
+    def expor_foco(self, evento):
+        if not self.barra.winfo_ismapped() or not str(evento.widget).startswith(str(self.pagina) + "."):
+            return
+        topo = evento.widget.winfo_rooty() - self.tela.winfo_rooty()
+        fim = topo + evento.widget.winfo_height()
+        deslocamento = min(0, topo) + max(0, fim - self.tela.winfo_height())
+        if deslocamento:
+            self.tela.yview_moveto((self.tela.canvasy(0) + deslocamento) / self.conteudo.winfo_height())
+
+
 class Compactador:
     def __init__(self, janela):
         self.janela = janela
-        self.raiz = self.janela_arvore = self.pendente = None
+        self.pendente = None
         self.origem = ""
         self.compactando = True
         janela.title("Compactador de arquivos")
         janela.configure(bg=FUNDO)
         aplicar_estilo(janela)
 
-        pagina = tk.Frame(janela, bg=FUNDO, padx=24, pady=20)
-        pagina.pack(fill="x")
+        janela.minsize(510, 320)
+        painel = PaginaRolavel(janela)
+        painel.pack(fill="both", expand=True)
+        pagina = painel.pagina
         rotulo(pagina, "Compactador de arquivos", 23, negrito=True).pack(anchor="w", pady=(0, 16))
 
         acoes = tk.Frame(pagina, bg=FUNDO)
@@ -94,11 +147,8 @@ class Compactador:
 
         self.resultado = tk.Frame(pagina, bg=PAINEL, padx=16, pady=12,
                                   highlightbackground=BORDA, highlightthickness=1)
-        cabecalho = tk.Frame(self.resultado, bg=PAINEL)
-        cabecalho.pack(fill="x")
-        self.titulo = rotulo(cabecalho, tamanho=14, negrito=True)
-        self.titulo.pack(side="left")
-        self.ver_arvore = ttk.Button(cabecalho, text="Ver árvore…", command=self.abrir_arvore)
+        self.titulo = rotulo(self.resultado, tamanho=14, negrito=True)
+        self.titulo.pack(anchor="w")
         self.mensagem = rotulo(self.resultado, cor=SUAVE)
         self.mensagem.pack(fill="x", pady=(3, 0))
         quebrar_linhas(self.mensagem)
@@ -126,19 +176,14 @@ class Compactador:
         self.salvar_novamente = ttk.Button(self.gravacao, text="Salvar resultado…", command=self.salvar)
         self.rotulo_destino = rotulo(self.gravacao, "Salvo em", cor=SUAVE)
         self.rodape = tk.Frame(pagina, bg=FUNDO)
-        self.rodape.pack(fill="x", pady=(14, 0))
+        self.rodape.pack(side="bottom", fill="x", pady=(10, 0))
         largura = min(750, janela.winfo_screenwidth() - 90)
         tk.Frame(self.rodape, bg=BORDA, height=1, width=largura).pack(fill="x", pady=(0, 9))
         self.status = tk.StringVar(value="Pronto")
         rotulo(self.rodape, textvariable=self.status, cor=SUAVE, tamanho=9).pack(side="left")
         rotulo(self.rodape, "LZ77 + Huffman", 9, SUAVE).pack(side="right")
-        pagina.bind("<Configure>", lambda _: self.ajustar_altura())
-        self.janela.after_idle(self.ajustar_altura)
-
-    def ajustar_altura(self):
-        altura = min(self.janela.winfo_reqheight(), self.janela.winfo_screenheight() - 80)
-        if self.janela.minsize() != (510, altura):
-            self.janela.minsize(510, altura)
+        self.arvore = ArvoreVisual(pagina)
+        self.arvore.pack(fill="both", expand=True, pady=(12, 0))
 
     def cartao(self, pai, coluna, compactando):
         cartao = tk.Frame(pai, bg=PAINEL, highlightbackground=BORDA, highlightthickness=1)
@@ -171,13 +216,12 @@ class Compactador:
         origem = filedialog.askopenfilename(parent=self.janela, title=titulo, filetypes=[tipo])
         if not origem:
             return
-        if self.janela_arvore:
-            self.fechar_arvore()
-        self.pendente = self.raiz = None
+        self.pendente = None
+        self.arvore.definir(None, "Processando o arquivo…")
         self.origem = origem
         self.compactando = compactando
         self.habilitar_acoes(False)
-        for widget in (self.ver_arvore, self.metricas, self.explicacao, self.gravacao,
+        for widget in (self.metricas, self.explicacao, self.gravacao,
                        self.caminho, self.rotulo_destino, self.salvar_novamente):
             widget.pack_forget()
         self.resultado.pack(fill="x", before=self.rodape, pady=(14, 0))
@@ -196,6 +240,7 @@ class Compactador:
         self.progresso.pack_forget()
         self.habilitar_acoes(True)
         self.titulo.config(text="Falha na operação")
+        self.arvore.definir(None, "Escolha um arquivo válido para visualizar a árvore.")
         self.mensagem.config(text=str(erro) or "Memória insuficiente para processar o arquivo.", fg=ERRO)
         self.status.set("Escolha outro arquivo ou tente novamente.")
         (self.compactar if self.compactando else self.restaurar).focus_set()
@@ -214,10 +259,10 @@ class Compactador:
         try:
             etapa, fracao = next(etapas)
         except StopIteration as fim:
-            dados, self.raiz = fim.value
+            dados, raiz = fim.value
             self.pendente = dados
             original, arquivo = (tamanho, len(dados)) if self.compactando else (len(dados), tamanho)
-            self.mostrar_resultado(original, arquivo)
+            self.mostrar_resultado(original, arquivo, raiz)
             self.salvar()
             self.habilitar_acoes(True)
             return
@@ -228,10 +273,10 @@ class Compactador:
         self.progresso.configure(value=100 * fracao)
         self.janela.after(1, self.avancar, etapas, tamanho)
 
-    def mostrar_resultado(self, original, arquivo):
+    def mostrar_resultado(self, original, arquivo, raiz):
         self.progresso.pack_forget()
         self.titulo.config(text="Texto compactado" if self.compactando else "Texto restaurado")
-        self.ver_arvore.pack(side="right")
+        self.arvore.definir(raiz)
         self.metricas.pack(fill="x", pady=(12, 5))
         economia, explicacao = explicar_taxa(original, arquivo)
         for campo, valor in zip(self.valores, (f"{quantidade(original)} B", f"{quantidade(arquivo)} B", economia)):
@@ -243,31 +288,6 @@ class Compactador:
         self.gravacao.pack(fill="x", pady=(10, 0))
         self.status.set("Escolha onde salvar o resultado.")
         self.janela.update_idletasks()
-
-    def abrir_arvore(self):
-        if self.janela_arvore:
-            self.janela_arvore.deiconify()
-            self.janela_arvore.lift()
-            self.janela_arvore.focus_set()
-            return
-        detalhe = tk.Toplevel(self.janela, bg=FUNDO)
-        self.janela_arvore = detalhe
-        detalhe.title(f"Árvore de Huffman — {self.nome_entrada}")
-        detalhe.transient(self.janela)
-        detalhe.geometry(f"{min(900, detalhe.winfo_screenwidth()-80)}x"
-                         f"{min(500, detalhe.winfo_screenheight()-100)}")
-        detalhe.minsize(520, 310)
-        arvore = ArvoreVisual(detalhe)
-        arvore.pack(fill="both", expand=True)
-        arvore.definir(self.raiz)
-        detalhe.protocol("WM_DELETE_WINDOW", self.fechar_arvore)
-        detalhe.bind("<Escape>", lambda _: self.fechar_arvore())
-        arvore.tela.focus_set()
-
-    def fechar_arvore(self):
-        self.janela_arvore.destroy()
-        self.janela_arvore = None
-        self.ver_arvore.focus_set()
 
     def salvar(self):
         pasta, _, nome = self.origem.replace("\\", "/").rpartition("/")

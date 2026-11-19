@@ -35,22 +35,29 @@ class InterfaceTest(unittest.TestCase):
                 self.assertLess(monotonic(), limite, "A operação não terminou")
                 self.janela.update()
 
-    def test_operacoes_independentes_da_arvore(self):
+    def test_arvore_aberta_abaixo_do_resultado_nas_duas_operacoes(self):
         entrada = self.pasta / "entrada.txt"
         pacote = self.pasta / "texto.huf"
         restaurado = self.pasta / "restaurado.txt"
         entrada.write_bytes("Árvore e compactação\r\n".encode() * 2000)
-        self.assertFalse(self.ui.resultado.winfo_manager())
+        self.janela.attributes("-alpha", 0)
+        self.janela.deiconify()
+        self.janela.update()
+        arvore = self.ui.arvore
+        self.assertTrue(arvore.aviso.winfo_ismapped())
         self.processar(self.ui.compactar, entrada, pacote)
-        self.assertIsNone(self.ui.janela_arvore)
-        self.ui.ver_arvore.invoke()
-        detalhe = self.ui.janela_arvore
-        self.assertIs(detalhe.winfo_children()[0].raiz, self.ui.raiz)
-        self.ui.ver_arvore.invoke()
-        self.assertIs(self.ui.janela_arvore, detalhe)
+        self.assertTrue(arvore.tela.winfo_ismapped())
+        self.assertGreater(len(arvore.posicoes), 1)
+        self.assertIs(arvore.winfo_toplevel(), self.janela)
+        self.assertGreaterEqual(arvore.winfo_rooty(),
+                                self.ui.resultado.winfo_rooty() + self.ui.resultado.winfo_height())
+        raiz_anterior = arvore.raiz
+        arvore.expandir.invoke()
+        self.assertGreater(len(arvore.posicoes), 7)
         self.processar(self.ui.restaurar, pacote, restaurado)
-        self.assertFalse(detalhe.winfo_exists())
-        self.assertIsNone(self.ui.janela_arvore)
+        self.assertIsNot(arvore.raiz, raiz_anterior)
+        self.assertIn(arvore.raiz, arvore.abertos)
+        self.assertTrue(arvore.tela.winfo_ismapped())
         self.assertEqual(restaurado.read_bytes(), entrada.read_bytes())
 
     def test_salvar_apos_cancelamento_e_limpar_resultado_invalido(self):
@@ -60,13 +67,16 @@ class InterfaceTest(unittest.TestCase):
         self.processar(self.ui.compactar, entrada, "")
         self.assertTrue(self.ui.salvar_novamente.winfo_manager())
         self.assertEqual(self.ui.valores[2]["text"], "Indefinida")
+        self.assertIn("vazio", self.ui.arvore.aviso["text"])
         with patch("compactador.filedialog.asksaveasfilename", return_value=str(pacote)):
             self.ui.salvar_novamente.invoke()
         self.assertEqual(pacote.stat().st_size, 17)
         self.assertIsNone(self.ui.pendente)
         self.processar(self.ui.restaurar, entrada, self.pasta / "invalido.txt")
         self.assertFalse((self.pasta / "invalido.txt").exists())
-        self.assertFalse(self.ui.ver_arvore.winfo_manager())
+        self.assertIsNone(self.ui.arvore.raiz)
+        self.assertFalse(self.ui.arvore.posicoes)
+        self.assertIn("válido", self.ui.arvore.aviso["text"])
         self.assertFalse(self.ui.metricas.winfo_manager())
 
 
