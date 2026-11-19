@@ -2,15 +2,51 @@
 
 Aplicação em Python que compacta textos combinando LZ77 e Huffman. A interface usa Tkinter. O módulo dos algoritmos usa somente recursos nativos do Python e não tem importações.
 
-## Como usar
+## Instalação e execução
 
-Com Python 3 e Tkinter instalados, abra um terminal nesta pasta. No Windows, execute
+### 1. Instale o Git e o Python 3 com Tkinter
+
+O Git serve para baixar o repositório. O compactador usa a biblioteca padrão do Python e pode ser executado diretamente, sem instalar pacotes com `pip`.
+
+- **Windows** — Instale o Git e o Python 3 pelos instaladores oficiais. Na instalação do Python, mantenha o suporte a Tcl/Tk habilitado. Depois, abra uma nova janela do PowerShell. [Git para Windows](https://git-scm.com/install/windows/) · [Python para Windows](https://www.python.org/downloads/windows/)
+- **macOS** — Instale o Git e a distribuição oficial do Python 3, que inclui o Tkinter. Depois, abra o Terminal. [Git para macOS](https://git-scm.com/install/mac/) · [Python para macOS](https://www.python.org/downloads/macos/)
+- **Ubuntu ou Debian** — Abra o terminal e instale os três pacotes:
+
+  ```bash
+  sudo apt update
+  sudo apt install git python3 python3-tk
+  ```
+
+Para conferir a instalação, execute `git --version` e, em seguida, `py -m tkinter` no Windows ou `python3 -m tkinter` no macOS e no Linux. Quando a janela de demonstração do Tkinter abrir, feche-a para continuar no terminal.
+
+### 2. Clone o repositório
+
+No terminal, abra a pasta onde deseja guardar o projeto e execute:
+
+```sh
+git clone https://github.com/cauacaetanofb/compactador_de_arquivos.git
+cd compactador_de_arquivos
+```
+
+### 3. Execute o compactador
+
+Na pasta `compactador_de_arquivos`, execute o comando correspondente ao seu sistema.
+
+**Windows (PowerShell)**
 
 ```powershell
 py compactador.py
 ```
 
-Em sistemas que usam o comando `python3`, execute `python3 compactador.py`.
+**macOS ou Linux**
+
+```bash
+python3 compactador.py
+```
+
+A janela **Compactador de arquivos** abrirá com as opções **Compactar** e **Descompactar**.
+
+## Como usar
 
 1. Em **Compactar**, clique em **Escolher TXT…**, selecione o texto e salve o arquivo `.huf`.
 2. Em **Descompactar**, clique em **Escolher HUF…** para restaurar o TXT. A verificação de integridade ocorre antes de salvar. Se cancelar o salvamento, use **Salvar resultado…** para retomar.
