@@ -4,17 +4,12 @@ import tkinter as tk
 from tkinter import ttk
 
 from huffman_lz77 import MINIMO
+from estilo import ACENTO, BORDA, FONTE, FUNDO, PAINEL, SUAVE, TINTA
 
 
-FUNDO = "#f7f9fb"
-TINTA = "#162c40"
-SUAVE = "#455b70"
-AZUL = "#175ba5"
-BORDA = "#d2dce5"
-JUNCAO = "#d9eafa"
-LITERAL = "#d7eee5"
-COPIA = "#f9e7c5"
-FONTE = "Segoe UI"
+JUNCAO = "#353951"
+LITERAL = "#263f38"
+COPIA = "#4a3a28"
 
 
 def quantidade(valor):
@@ -32,17 +27,18 @@ def rotulo(simbolo):
 
 class ArvoreVisual(tk.Frame):
     def __init__(self, mestre):
-        super().__init__(mestre, bg="white", highlightthickness=1,
+        super().__init__(mestre, bg=PAINEL, highlightthickness=1,
                          highlightbackground=BORDA)
         self.raiz = None
         self.abertos = set()
         self.nos = {}
         self.posicoes = {}
+        self.selecionado = None
         self.vazio = "A árvore aparecerá aqui após a escolha de um arquivo."
 
-        topo = tk.Frame(self, bg="white", padx=16, pady=10)
+        topo = tk.Frame(self, bg=PAINEL, padx=16, pady=10)
         topo.pack(fill="x")
-        tk.Label(topo, text="Árvore de Huffman", bg="white", fg=TINTA,
+        tk.Label(topo, text="Árvore de Huffman", bg=PAINEL, fg=TINTA,
                  font=(FONTE, 15, "bold")).pack(side="left")
         self.inicial = ttk.Button(topo, text="Visão inicial", command=self.reiniciar)
         self.inicial.pack(side="right")
@@ -54,7 +50,8 @@ class ArvoreVisual(tk.Frame):
         area.columnconfigure(0, weight=1)
         area.rowconfigure(0, weight=1)
         self.tela = tk.Canvas(area, bg=FUNDO, height=180, width=1,
-                              highlightthickness=0)
+                              takefocus=True, highlightthickness=1,
+                              highlightbackground=FUNDO, highlightcolor=ACENTO)
         self.tela.grid(row=0, column=0, sticky="nsew")
         horizontal = ttk.Scrollbar(area, orient="horizontal", command=self.tela.xview)
         vertical = ttk.Scrollbar(area, orient="vertical", command=self.tela.yview)
@@ -63,20 +60,22 @@ class ArvoreVisual(tk.Frame):
         self.tela.configure(xscrollcommand=horizontal.set, yscrollcommand=vertical.set)
         self.tela.bind("<Configure>", lambda _: self.desenhar())
         self.tela.bind("<Button-1>", self.alternar)
+        for tecla in ("Left", "Right", "Up", "space", "Return"):
+            self.tela.bind(f"<{tecla}>", self.navegar)
         self.tela.tag_bind("ramo", "<Enter>", lambda _: self.tela.config(cursor="hand2"))
         self.tela.tag_bind("ramo", "<Leave>", lambda _: self.tela.config(cursor=""))
         self.tela.bind("<MouseWheel>", lambda e: self.rolar(e, False))
         self.tela.bind("<Shift-MouseWheel>", lambda e: self.rolar(e, True))
 
-        legenda = tk.Frame(self, bg="white", padx=16, pady=8)
+        legenda = tk.Frame(self, bg=PAINEL, padx=16, pady=8)
         legenda.pack(fill="x")
         for cor, nome in ((JUNCAO, "Junção"), (LITERAL, "Byte literal"), (COPIA, "Cópia LZ77")):
             tk.Frame(legenda, width=10, height=10, bg=cor, highlightthickness=1,
                      highlightbackground=BORDA).pack(side="left")
-            tk.Label(legenda, text=nome, bg="white", fg=SUAVE, font=(FONTE, 9)
+            tk.Label(legenda, text=nome, bg=PAINEL, fg=SUAVE, font=(FONTE, 9)
                      ).pack(side="left", padx=(4, 14))
-        tk.Label(legenda, text="Clique em uma junção para abrir ou recolher o ramo.",
-                 bg="white", fg=SUAVE, font=(FONTE, 9)).pack(side="right")
+        tk.Label(self, text="Use as setas para navegar e Espaço para abrir ou recolher uma junção.",
+                 bg=PAINEL, fg=SUAVE, font=(FONTE, 9)).pack(anchor="w", padx=14, pady=(0, 8))
         self.definir(None, self.vazio)
 
     def rolar(self, evento, horizontal):
@@ -86,6 +85,7 @@ class ArvoreVisual(tk.Frame):
 
     def definir(self, raiz, vazio="O TXT está vazio. Não há símbolos para montar uma árvore."):
         self.raiz = raiz
+        self.selecionado = raiz
         self.vazio = vazio
         estado = "normal" if raiz is not None and raiz.simbolo is None else "disabled"
         self.expandir.configure(state=estado)
@@ -100,6 +100,7 @@ class ArvoreVisual(tk.Frame):
 
     def abrir(self, niveis):
         self.abertos.clear()
+        self.selecionado = self.raiz
 
         def visitar(no, nivel):
             if no is None or no.simbolo is not None or nivel == niveis:
@@ -114,14 +115,36 @@ class ArvoreVisual(tk.Frame):
     def alternar(self, evento):
         for tag in self.tela.gettags("current"):
             no = self.nos.get(tag)
-            if no is None or no.simbolo is not None:
+            if no is None:
                 continue
-            if no in self.abertos:
-                self.abertos.remove(no)
-            else:
-                self.abertos.add(no)
+            self.tela.focus_set()
+            self.selecionado = no
+            if no.simbolo is None:
+                self.alternar_ramo(no)
             self.desenhar(no, evento.x, evento.y)
             break
+
+    def alternar_ramo(self, no):
+        if no in self.abertos:
+            self.abertos.remove(no)
+        else:
+            self.abertos.add(no)
+
+    def navegar(self, evento):
+        no = self.selecionado
+        if no is None:
+            return "break"
+        if evento.keysym == "Up":
+            no = next((pai for pai in self.posicoes if no in (pai.esquerda, pai.direita)), no)
+        elif no.simbolo is None:
+            if evento.keysym in ("space", "Return"):
+                self.alternar_ramo(no)
+            else:
+                self.abertos.add(no)
+                no = no.esquerda if evento.keysym == "Left" else no.direita
+        self.selecionado = no
+        self.desenhar(no, self.tela.winfo_width() / 2, self.tela.winfo_height() / 2)
+        return "break"
 
     def desenhar(self, ancora=None, mouse_x=None, mouse_y=None):
         tela = self.tela
@@ -180,7 +203,8 @@ class ArvoreVisual(tk.Frame):
                 cor = LITERAL if no.simbolo < 256 else COPIA
                 tags = (tag,)
             tela.create_rectangle(x - 58, y - 22, x + 58, y + 22, fill=cor,
-                                  outline=BORDA, tags=tags)
+                                  outline=ACENTO if no is self.selecionado else BORDA,
+                                  width=2 if no is self.selecionado else 1, tags=tags)
             tela.create_text(x, y - 8, text=nome, font=(FONTE, 10, "bold"),
                              fill=TINTA, tags=tags)
             tela.create_text(x, y + 10, text=f"freq. {quantidade(no.peso)}",
