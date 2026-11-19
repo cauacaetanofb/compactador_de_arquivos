@@ -34,24 +34,22 @@ class ArvoreVisual(tk.Frame):
         self.nos = {}
         self.posicoes = {}
         self.selecionado = None
-        self.columnconfigure(0, weight=1)
-        self.rowconfigure(1, weight=1)
+        self.vazio = "A árvore aparecerá aqui após a escolha de um arquivo."
 
         topo = tk.Frame(self, bg=PAINEL, padx=16, pady=10)
-        topo.grid(row=0, column=0, sticky="ew")
+        topo.pack(fill="x")
         tk.Label(topo, text="Árvore de Huffman", bg=PAINEL, fg=TINTA,
                  font=(FONTE, 15, "bold")).pack(side="left")
-        self.controles = tk.Frame(topo, bg=PAINEL)
-        self.inicial = ttk.Button(self.controles, text="Visão inicial", command=self.reiniciar)
+        self.inicial = ttk.Button(topo, text="Visão inicial", command=self.reiniciar)
         self.inicial.pack(side="right")
-        self.expandir = ttk.Button(self.controles, text="Expandir tudo", command=self.abrir_tudo)
+        self.expandir = ttk.Button(topo, text="Expandir tudo", command=self.abrir_tudo)
         self.expandir.pack(side="right", padx=6)
 
-        area = self.area = tk.Frame(self, bg=FUNDO)
-        area.grid(row=1, column=0, sticky="nsew")
+        area = tk.Frame(self, bg=FUNDO)
+        area.pack(fill="both", expand=True)
         area.columnconfigure(0, weight=1)
         area.rowconfigure(0, weight=1)
-        self.tela = tk.Canvas(area, bg=FUNDO, height=220, width=1,
+        self.tela = tk.Canvas(area, bg=FUNDO, height=180, width=1,
                               takefocus=True, highlightthickness=1,
                               highlightbackground=FUNDO, highlightcolor=ACENTO)
         self.tela.grid(row=0, column=0, sticky="nsew")
@@ -69,20 +67,16 @@ class ArvoreVisual(tk.Frame):
         self.tela.bind("<MouseWheel>", lambda e: self.rolar(e, False))
         self.tela.bind("<Shift-MouseWheel>", lambda e: self.rolar(e, True))
 
-        self.aviso = tk.Label(self, bg=PAINEL, fg=SUAVE, font=(FONTE, 10),
-                              anchor="nw", justify="left")
-        self.legenda = tk.Frame(self, bg=PAINEL)
-        self.legenda.grid(row=2, column=0, sticky="ew")
-        legenda = tk.Frame(self.legenda, bg=PAINEL, padx=16, pady=6)
+        legenda = tk.Frame(self, bg=PAINEL, padx=16, pady=8)
         legenda.pack(fill="x")
         for cor, nome in ((JUNCAO, "Junção"), (LITERAL, "Byte literal"), (COPIA, "Cópia LZ77")):
             tk.Frame(legenda, width=10, height=10, bg=cor, highlightthickness=1,
                      highlightbackground=BORDA).pack(side="left")
             tk.Label(legenda, text=nome, bg=PAINEL, fg=SUAVE, font=(FONTE, 9)
                      ).pack(side="left", padx=(4, 14))
-        tk.Label(self.legenda, text="Use as setas para navegar e Espaço para abrir ou recolher uma junção.",
+        tk.Label(self, text="Use as setas para navegar e Espaço para abrir ou recolher uma junção.",
                  bg=PAINEL, fg=SUAVE, font=(FONTE, 9)).pack(anchor="w", padx=14, pady=(0, 8))
-        self.definir(None, "A árvore aparecerá aqui após processar um arquivo.")
+        self.definir(None, self.vazio)
 
     def rolar(self, evento, horizontal):
         mover = self.tela.xview_scroll if horizontal else self.tela.yview_scroll
@@ -92,20 +86,10 @@ class ArvoreVisual(tk.Frame):
     def definir(self, raiz, vazio="O TXT está vazio. Não há símbolos para montar uma árvore."):
         self.raiz = raiz
         self.selecionado = raiz
-        if raiz is None:
-            self.controles.pack_forget()
-            self.area.grid_remove()
-            self.legenda.grid_remove()
-            self.aviso.configure(text=vazio)
-            self.aviso.grid(row=1, column=0, sticky="nw", padx=14, pady=(0, 12))
-        else:
-            self.aviso.grid_remove()
-            self.controles.pack(side="right")
-            self.area.grid()
-            self.legenda.grid()
-            estado = "disabled" if raiz.simbolo is not None else "normal"
-            self.expandir.configure(state=estado)
-            self.inicial.configure(state=estado)
+        self.vazio = vazio
+        estado = "normal" if raiz is not None and raiz.simbolo is None else "disabled"
+        self.expandir.configure(state=estado)
+        self.inicial.configure(state=estado)
         self.reiniciar()
 
     def reiniciar(self):
@@ -169,6 +153,9 @@ class ArvoreVisual(tk.Frame):
         self.posicoes.clear()
         largura, altura = tela.winfo_width(), tela.winfo_height()
         if self.raiz is None:
+            tela.configure(scrollregion=(0, 0, largura, altura))
+            tela.create_text(largura / 2, altura / 2, text=self.vazio,
+                             fill=SUAVE, font=(FONTE, 11))
             return
 
         passo_x, passo_y = 128, 78

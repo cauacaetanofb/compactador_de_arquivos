@@ -14,7 +14,7 @@ Em sistemas que usam o comando `python3`, execute `python3 compactador.py`.
 
 1. Em **Compactar**, clique em **Escolher TXT…**, selecione o texto e salve o arquivo `.huf`.
 2. Em **Descompactar**, clique em **Escolher HUF…** para restaurar o TXT. A verificação de integridade ocorre antes de salvar. Se cancelar o salvamento, use **Salvar resultado…** para retomar.
-3. O painel de resultado mostra os tamanhos dos arquivos e a economia de espaço. A **Árvore de Huffman** aparece logo abaixo, com os primeiros ramos abertos. Clique nas junções ou use as setas e a tecla Espaço para explorar a árvore. **Expandir tudo** mostra todos os ramos.
+3. O painel de resultado mostra os tamanhos dos arquivos e a economia de espaço. Para consultar a árvore do arquivo processado, clique em **Ver árvore…**. Na janela de detalhes, clique nas junções ou use as setas e a tecla Espaço. **Expandir tudo** mostra todos os ramos e Esc fecha a janela.
 
 O programa lê e grava bytes. Isso preserva acentos, a codificação do texto, quebras de linha e a presença ou ausência da última quebra de linha. Os arquivos são processados em memória. O formato `.huf` deste projeto é identificado pela assinatura HZ77 e pela versão 1.
 
